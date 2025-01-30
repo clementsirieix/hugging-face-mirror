@@ -1,0 +1,54 @@
+{
+    "name": "hugging-face-exercice",
+    "version": "1.0.0",
+    "description": "TODO: Add description",
+    "main": "src/index.ts",
+    "scripts": {
+        "build": "tsc",
+        "start": "NODE_ENV=production node dist/index.js",
+        "dev": "NODE_ENV=development nodemon --watch 'src/**' --ext 'ts,json' --ignore 'src/**/*.test.ts' --exec 'ts-node src/index.ts'",
+        "lint": "eslint .",
+        "typecheck": "tsc --noEmit",
+        "test": "vitest",
+        "check": "npm run lint && npm run typecheck && vitest run"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/clementsirieix/hugging-face-mirror.git"
+    },
+    "author": "",
+    "license": "ISC",
+    "bugs": {
+        "url": "https://github.com/clementsirieix/hugging-face-mirror/issues"
+    },
+    "homepage": "https://github.com/clementsirieix/hugging-face-mirror#readme",
+    "devDependencies": {
+        "@smithy/util-stream": "4.0.2",
+        "@types/express": "5.0.0",
+        "@types/node": "22.12.0",
+        "@types/node-cron": "3.0.11",
+        "@typescript-eslint/eslint-plugin": "8.22.0",
+        "@typescript-eslint/parser": "8.22.0",
+        "aws-sdk-client-mock": "4.1.0",
+        "aws-sdk-client-mock-jest": "4.1.0",
+        "chalk": "5.4.1",
+        "eslint": "9.19.0",
+        "eslint-config-prettier": "10.0.1",
+        "nodemon": "3.1.9",
+        "prettier": "3.4.2",
+        "ts-node": "10.9.2",
+        "typescript": "5.7.3",
+        "vitest": "3.0.4"
+    },
+    "dependencies": {
+        "@aws-sdk/client-s3": "3.738.0",
+        "@aws-sdk/client-sqs": "3.738.0",
+        "async-mutex": "0.5.0",
+        "dayjs": "1.11.13",
+        "dotenv": "16.4.7",
+        "express": "4.21.2",
+        "glob": "11.0.1",
+        "mongodb": "6.12.0",
+        "node-cron": "3.0.3"
+    }
+}
