@@ -1,25 +1,38 @@
 {
   "compilerOptions": {
-    "target": "ES2020",
-    "module": "commonjs",
-    "lib": [
-      "ES2020"
-    ],
-    "outDir": "./dist",
-    "rootDir": "./src",
+    "target": "ES2022",
+    "moduleResolution": "node",
     "strict": true,
     "esModuleInterop": true,
-    "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "moduleResolution": "node",
+    "skipLibCheck": true,
+    "jsx": "react-jsx",
     "resolveJsonModule": true,
-    "baseUrl": "."
+    "sourceMap": true,
+    "baseUrl": ".",
+    "types": [
+      "node",
+      "vitest",
+      "react",
+      "react-dom"
+    ],
+    "allowJs": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "strictBindCallApply": true,
+    "strictPropertyInitialization": true,
+    "noImplicitThis": true,
+    "useUnknownInCatchVariables": true,
+    "module": "CommonJS",
+    "preserveConstEnums": true,
+    "outDir": "./dist",
+    "rootDir": "./src"
   },
   "include": [
-    "src/**/*"
+    "src/**/*",
   ],
   "exclude": [
     "node_modules",
-    "**/*.test.ts"
+    "dist",
   ]
 }

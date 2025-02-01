@@ -7,11 +7,18 @@ import { getWorkerFilePath } from "./utils/system";
 import { disconnectFromStorage } from "./lib/storage";
 import { disconnectFromQueue, startConsumerWorkers, stopWorkers } from "./lib/queue";
 import { connectToElasticsearch, initMapping } from "./lib/es";
+import path from "path";
 
 const app = express();
 let scheduler: Scheduler | null = null;
 
 app.use(routes);
+
+app.use(express.static(path.join(__dirname, "./client")));
+
+app.get("*", (_req, res) => {
+    res.sendFile(path.join(__dirname, "./client/index.html"));
+});
 
 async function startServer() {
     try {
@@ -32,7 +39,7 @@ async function startServer() {
             getWorkerFilePath("hf-backup"),
             db
         );
-        scheduler.start();
+        // scheduler.start();
         console.log("Scheduler started");
 
         app.listen(env.port, () => {

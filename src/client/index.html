@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>HF Mirror</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,200..900;1,200..900&display=swap"
+            rel="stylesheet"
+        />
+        <script src="https://unpkg.com/@tailwindcss/browser@4"></script>
+        <style type="text/tailwindcss">
+            @theme {
+                --font-sans: "Source Sans 3", ui-sans-serif, system-ui, sans-serif;
+            }
+        </style>
+    </head>
+    <body class="flex flex-col min-h-dvh bg-gray-950 text-gray-300 items-center">
+        <div
+            id="app"
+            class="flex flex-col py-6 max-w-120 h-full min-h-dvh items-center gap-2 px-2 margin-auto w-full"
+        ></div>
+        <script type="module" src="./main.tsx"></script>
+    </body>
+</html>

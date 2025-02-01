@@ -8,6 +8,7 @@ export enum JobStatus {
 }
 
 export type Job = {
+    _id?: ObjectId;
     key: string;
     startTime: string;
     endTime?: string;
@@ -39,6 +40,7 @@ export type Model = {
     createdAt: string;
     modelId: string;
     siblings: Record<string, unknown>[];
+    lastModified: string;
 };
 
 // ES entities

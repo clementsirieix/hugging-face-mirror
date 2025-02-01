@@ -1,6 +1,6 @@
 import { Request, Response, Router } from "express";
 import { Db, ObjectId } from "mongodb";
-import { JobStatus, ModelIndex, ModelPosition } from "../../../types";
+import { JobStatus, Model, ModelIndex, ModelPosition } from "../../../types";
 import { connectToElasticsearch } from "../../../lib/es";
 import { QueryDslQueryContainer, Sort } from "@elastic/elasticsearch/lib/api/types";
 
@@ -65,9 +65,24 @@ type JobModelsQueryParams = {
     sizeGte?: string;
 };
 
+export type JobModelsResponse =
+    | {
+          data: Model[];
+          pagination: {
+              total: number;
+              page: number;
+              limit: number;
+              pages: number;
+          };
+      }
+    | {
+          error: string;
+          message?: string;
+      };
+
 export async function getJobModels(
     req: Request<JobUrlParams, any, any, JobModelsQueryParams>,
-    res: Response
+    res: Response<JobModelsResponse>
 ) {
     let jobObjectId: ObjectId;
     try {
@@ -148,7 +163,7 @@ export async function getJobModels(
         res.json({
             data: modelIds
                 .map((id) => (id ? modelPositionsMap[id]?.model : undefined))
-                .filter(Boolean),
+                .filter(Boolean) as Model[],
             pagination: {
                 total,
                 page,
