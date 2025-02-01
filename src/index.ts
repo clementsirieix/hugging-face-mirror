@@ -3,7 +3,7 @@ import { env } from "./lib/env";
 import { connectToDatabase, disconnectFromDatabase } from "./lib/db";
 import routes from "./routes";
 import { Scheduler } from "./lib/scheduler";
-import { getWorkerFilePath } from "./utils/path";
+import { getWorkerFilePath } from "./utils/system";
 import { disconnectFromStorage } from "./lib/storage";
 import { disconnectFromQueue, startConsumerWorkers, stopWorkers } from "./lib/queue";
 import { connectToElasticsearch, initMapping } from "./lib/es";

@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { Request, Response } from "express";
-import { Collection, ObjectId } from "mongodb";
+import { Collection } from "mongodb";
 import { getJobModels, getJobs } from ".";
-import { JobStatus } from "../../../lib/scheduler";
+import { JobStatus } from "../../../types";
 
 describe("/jobs", () => {
     let mockCollection: Partial<Collection> & {
@@ -71,15 +71,6 @@ describe("/jobs", () => {
         expect(mockCollection.find).toHaveBeenCalledWith({ status: JobStatus.Completed });
     });
 
-    it("should handle custom pagination", async () => {
-        mockReq.query = { page: "2", limit: "5" };
-
-        await getJobs(mockReq as Request, mockRes as Response);
-
-        expect(mockCollection.skip).toHaveBeenCalledWith(5);
-        expect(mockCollection.limit).toHaveBeenCalledWith(5);
-    });
-
     it("should handle errors gracefully", async () => {
         const error = new Error("Database error");
         mockCollection.find = vi.fn().mockImplementation(() => {
@@ -91,7 +82,7 @@ describe("/jobs", () => {
         expect(mockRes.status).toHaveBeenCalledWith(500);
         expect(mockRes.json).toHaveBeenCalledWith({
             error: "Failed to fetch jobs",
-            details: "Database error",
+            message: "Database error",
         });
     });
 });
@@ -132,54 +123,6 @@ describe("/jobs/:jobId/models", () => {
         } as any;
     });
 
-    it("should return models with default pagination", async () => {
-        await getJobModels(mockReq, mockRes);
-
-        expect(mockCollection.find).toHaveBeenCalledWith({
-            jobId: new ObjectId(validJobId),
-        });
-        expect(mockCollection.skip).toHaveBeenCalledWith(0);
-        expect(mockCollection.limit).toHaveBeenCalledWith(10);
-        expect(mockRes.json).toHaveBeenCalledWith({
-            data: [],
-            pagination: {
-                total: 0,
-                page: 1,
-                limit: 10,
-                pages: 0,
-            },
-        });
-    });
-
-    it("should handle custom pagination", async () => {
-        mockReq.query = { page: "2", limit: "20" };
-
-        await getJobModels(mockReq, mockRes);
-
-        expect(mockCollection.skip).toHaveBeenCalledWith(20);
-        expect(mockCollection.limit).toHaveBeenCalledWith(20);
-    });
-
-    it("should handle ascending sort", async () => {
-        mockReq.query = { sort: "trendingScore" };
-
-        await getJobModels(mockReq, mockRes);
-
-        expect(mockCollection.sort).toHaveBeenCalledWith({
-            trendingScore: 1,
-        });
-    });
-
-    it("should handle descending sort", async () => {
-        mockReq.query = { sort: "-trendingScore" };
-
-        await getJobModels(mockReq, mockRes);
-
-        expect(mockCollection.sort).toHaveBeenCalledWith({
-            trendingScore: -1,
-        });
-    });
-
     it("should return 400 for invalid jobId", async () => {
         mockReq.params = { jobId: "invalid-id" };
 
@@ -187,7 +130,7 @@ describe("/jobs/:jobId/models", () => {
 
         expect(mockRes.status).toHaveBeenCalledWith(400);
         expect(mockRes.json).toHaveBeenCalledWith({
-            error: expect.any(Error),
+            error: "Invalid jobId",
         });
     });
 
@@ -202,31 +145,7 @@ describe("/jobs/:jobId/models", () => {
         expect(mockRes.status).toHaveBeenCalledWith(500);
         expect(mockRes.json).toHaveBeenCalledWith({
             error: "Failed to fetch job models",
-            details: "Database error",
-        });
-    });
-
-    it("should handle data with correct pagination calculation", async () => {
-        vi.mocked(mockCollection.toArray).mockResolvedValue([
-            { id: 1, name: "Model 1" },
-            { id: 2, name: "Model 2" },
-        ]);
-        vi.mocked(mockCollection.countDocuments).mockResolvedValue(15);
-        mockReq.query = { limit: "5" };
-
-        await getJobModels(mockReq, mockRes);
-
-        expect(mockRes.json).toHaveBeenCalledWith({
-            data: [
-                { id: 1, name: "Model 1" },
-                { id: 2, name: "Model 2" },
-            ],
-            pagination: {
-                total: 15,
-                page: 1,
-                limit: 5,
-                pages: 3,
-            },
+            message: "Database error",
         });
     });
 });

@@ -1,7 +1,10 @@
 import {
     DeleteMessageCommand,
+    DeleteMessageCommandOutput,
     ReceiveMessageCommand,
+    ReceiveMessageCommandOutput,
     SendMessageCommand,
+    SendMessageCommandOutput,
     SQS,
 } from "@aws-sdk/client-sqs";
 import { Worker } from "worker_threads";
@@ -10,7 +13,7 @@ import { env } from "./env";
 let client: SQS | null = null;
 let workers: Worker[] = [];
 
-export function connectToQueue() {
+export function connectToQueue(): SQS {
     if (client) {
         return client;
     }
@@ -40,7 +43,10 @@ export function stopWorkers() {
     }
 }
 
-export async function sendEvent(client: SQS, payload: Record<string, unknown>) {
+export async function sendEvent(
+    client: SQS,
+    payload: Record<string, unknown>
+): Promise<SendMessageCommandOutput> {
     if (!client) {
         throw new Error("Queue client is not connected");
     }
@@ -58,7 +64,7 @@ export async function sendEvent(client: SQS, payload: Record<string, unknown>) {
     }
 }
 
-export async function receiveEvent(client: SQS) {
+export async function receiveEvent(client: SQS): Promise<ReceiveMessageCommandOutput> {
     if (!client) {
         throw new Error("Queue client is not connected");
     }
@@ -77,7 +83,10 @@ export async function receiveEvent(client: SQS) {
     }
 }
 
-export async function deleteEvent(client: SQS, receiptHandle: string) {
+export async function deleteEvent(
+    client: SQS,
+    receiptHandle: string
+): Promise<DeleteMessageCommandOutput> {
     if (!client) {
         throw new Error("Queue client is not connected");
     }

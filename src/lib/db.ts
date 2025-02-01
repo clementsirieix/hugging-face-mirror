@@ -1,9 +1,9 @@
-import { MongoClient } from "mongodb";
+import { Db, MongoClient } from "mongodb";
 import { env } from "./env";
 
 let client: MongoClient | null = null;
 
-export async function connectToDatabase() {
+export async function connectToDatabase(): Promise<Db> {
     if (client) {
         return client.db(env.dbName);
     }

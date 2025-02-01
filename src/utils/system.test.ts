@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import path from "path";
 import { env } from "../lib/env";
 
-import { getWorkerFilePath } from "./path";
+import { getWorkerFilePath } from "./system";
 
 vi.mock("../lib/env", () => ({
     env: {

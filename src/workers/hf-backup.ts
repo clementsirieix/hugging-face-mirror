@@ -2,19 +2,16 @@ import { workerData } from "worker_threads";
 import { ObjectId } from "mongodb";
 import { connectToDatabase } from "../lib/db";
 import { env } from "../lib/env";
-import { fetchModels, Model, retryWithBackoff } from "../lib/hf-api";
+import { fetchModels, retryWithBackoff } from "../lib/hf-api";
 import { sleep } from "../utils/time";
 import { connectToQueue, sendEvent } from "../lib/queue";
-
-type ModelPosition = {
-    jobId: ObjectId;
-    trendingScore: number;
-    model: Model;
-};
+import { ModelPosition } from "../types";
+import { connectToElasticsearch } from "../lib/es";
 
 export async function run() {
     console.log("Backup job started");
     const sqsClient = connectToQueue();
+    const esClient = connectToElasticsearch();
     const jobId = workerData?.jobId;
 
     if (typeof jobId !== "string") {
@@ -65,6 +62,22 @@ export async function run() {
             };
         });
         await modelPositionsCollection.bulkWrite(modelPositionOperations);
+
+        await esClient.bulk({
+            operations: data.flatMap((model) => [
+                {
+                    update: {
+                        _index: "models",
+                        _id: `${jobId}_${model.id}`,
+                    },
+                },
+                {
+                    doc: { jobId, modelId: model.modelId, trendingScore: model.trendingScore },
+                    doc_as_upsert: true,
+                },
+            ]),
+            refresh: true,
+        });
 
         if (!nextCursor) {
             break;

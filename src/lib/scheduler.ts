@@ -4,20 +4,7 @@ import { Collection, Db, InsertOneResult } from "mongodb";
 import cron, { ScheduledTask } from "node-cron";
 import { Worker } from "worker_threads";
 import { env } from "./env";
-
-export enum JobStatus {
-    Pending = "pending",
-    Failed = "failed",
-    Completed = "completed",
-}
-
-type Job = {
-    key: string;
-    startTime: string;
-    endTime?: string;
-    log?: string;
-    status: JobStatus;
-};
+import { Job, JobStatus } from "../types";
 
 export class Scheduler {
     private jobs: Collection<Job>;

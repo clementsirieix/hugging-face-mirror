@@ -5,7 +5,7 @@ import { env } from "./env";
 
 let client: S3 | null = null;
 
-export function connectToStorage() {
+export function connectToStorage(): S3 {
     if (client) {
         return client;
     }

@@ -1,7 +1,8 @@
 import { Request, Response, Router } from "express";
 import { Db, ObjectId } from "mongodb";
-import { JobStatus } from "../../../lib/scheduler";
-import { connectToElasticsearch, esSearch, ModelIndex } from "../../../lib/es";
+import { JobStatus, ModelIndex, ModelPosition } from "../../../types";
+import { connectToElasticsearch } from "../../../lib/es";
+import { QueryDslQueryContainer, Sort } from "@elastic/elasticsearch/lib/api/types";
 
 type JobsQueryParams = {
     limit?: string;
@@ -46,7 +47,7 @@ export async function getJobs(
     } catch (error) {
         res.status(500).json({
             error: "Failed to fetch jobs",
-            details: error instanceof Error ? error.message : "Unknown error",
+            message: error instanceof Error ? error.message : "Unknown error",
         });
     }
 }
@@ -60,78 +61,94 @@ type JobModelsQueryParams = {
     page?: string;
     sort?: string;
     search?: string;
+    sizeLte?: string;
+    sizeGte?: string;
 };
 
 export async function getJobModels(
     req: Request<JobUrlParams, any, any, JobModelsQueryParams>,
     res: Response
 ) {
-    const db = req.app.get("db") as Db;
-    const modelPositionsCollection = db.collection("model_positions");
     let jobObjectId: ObjectId;
-
     try {
         jobObjectId = new ObjectId(req.params.jobId);
     } catch (error) {
-        res.status(400).json({ error });
+        res.status(400).json({ error: "Invalid jobId" });
         return;
     }
-
     const limit = Math.min(parseInt(req.query.limit || "10", 10), 50);
     const page = parseInt(req.query.page || "1", 10);
     const skip = (page - 1) * limit;
-    const [, directionSign, field] = req.query.sort?.match(/(-)?(.*)/) || [];
-    let searchResult: string[] = [];
+    const esClient = connectToElasticsearch();
+    let filters: QueryDslQueryContainer[] = [{ term: { jobId: req.params.jobId } }];
+    let query: QueryDslQueryContainer = {};
+    let sort: Sort = [];
 
+    if (req.query.sizeGte || req.query.sizeLte) {
+        filters.push({
+            range: {
+                dirSize: {
+                    ...(req.query.sizeGte ? { gte: parseInt(req.query.sizeGte, 10) } : {}),
+                    ...(req.query.sizeLte ? { lte: parseInt(req.query.sizeLte, 10) } : {}),
+                },
+            },
+        });
+    }
     if (req.query.search) {
-        searchResult = (
-            await esSearch<ModelIndex>(
-                connectToElasticsearch(),
-                "models",
-                req.query.search,
-                limit,
-                skip,
-                {
-                    jobId: req.params.jobId,
-                }
-            )
-        ).map((doc) => doc.modelId);
+        query = {
+            bool: {
+                must: {
+                    multi_match: {
+                        query: req.query.search,
+                        fields: ["readme"],
+                    },
+                },
+                filter: filters,
+            },
+        };
+    } else {
+        query = { bool: { filter: filters } };
+        const [, directionSign, field] = req.query.sort?.match(/(-)?(.*)/) || [
+            ,
+            "-",
+            "trendingScore",
+        ];
+        sort.push({ [field]: { order: directionSign ? "desc" : "asc" } });
+    }
 
-        if (searchResult.length === 0) {
+    try {
+        const { hits } = await esClient.search<ModelIndex>({
+            index: "models",
+            from: skip,
+            size: limit,
+            query,
+            sort,
+        });
+        const modelIds = hits.hits.map((hit) => hit._source?.modelId);
+
+        if (modelIds.length === 0) {
             res.json({
                 data: [],
-                pagination: {
-                    total: 0,
-                    page,
-                    limit,
-                    pages: 0,
-                },
+                pagination: { total: 0, page, limit, pages: 0 },
             });
             return;
         }
-    }
-    const idQuery = searchResult.length > 0 ? { "model.id": { $in: searchResult } } : {};
-
-    try {
-        const query = { jobId: jobObjectId, ...idQuery };
-        const [data, total] = await Promise.all([
-            modelPositionsCollection
-                .find(query)
-                .sort({ [field]: directionSign ? -1 : 1 })
-                .skip(skip)
-                .limit(limit)
-                .toArray(),
-            modelPositionsCollection.countDocuments(query),
-        ]);
-
-        if (searchResult.length > 0) {
-            data.sort(
-                (a, b) => searchResult.indexOf(a.model.id) - searchResult.indexOf(b.model.id)
-            );
-        }
+        const db = req.app.get("db") as Db;
+        const modelPositionsCollection = db.collection<ModelPosition>("model_positions");
+        const modelPositionsMap = (
+            await modelPositionsCollection
+                .find({ jobId: jobObjectId, "model.id": { $in: modelIds } })
+                .toArray()
+        ).reduce((acc: Record<string, ModelPosition>, doc: ModelPosition) => {
+            acc[doc.model.id] = doc;
+            return acc;
+        }, {});
+        const total = typeof hits.total === "number" ? hits.total : hits.total?.value || 0;
 
         res.json({
-            data,
+            data: modelIds
+                .map((id) => (id ? modelPositionsMap[id]?.model : undefined))
+                .filter(Boolean),
             pagination: {
                 total,
                 page,
@@ -142,7 +159,7 @@ export async function getJobModels(
     } catch (error) {
         res.status(500).json({
             error: "Failed to fetch job models",
-            details: error instanceof Error ? error.message : "Unknown error",
+            message: error instanceof Error ? error.message : "Unknown error",
         });
     }
 }

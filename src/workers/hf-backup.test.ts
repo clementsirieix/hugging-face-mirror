@@ -1,22 +1,20 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { Db, ObjectId } from "mongodb";
 import { connectToDatabase } from "../lib/db";
-import { fetchModels, Model } from "../lib/hf-api";
+import { fetchModels } from "../lib/hf-api";
 import { sleep } from "../utils/time";
+import { Model } from "../types";
 
 vi.mock("worker_threads", () => ({
     workerData: {
         jobId: "507f1f77bcf86cd799439011",
     },
 }));
-
 vi.mock("../lib/db", () => ({
     connectToDatabase: vi.fn(),
 }));
-
 vi.mock("../lib/env", async () => {
     const { env } = await vi.importActual("../lib/env");
-
     return {
         env: {
             ...(env as Record<string, unknown>),
@@ -26,16 +24,24 @@ vi.mock("../lib/env", async () => {
         },
     };
 });
-
 vi.mock("../lib/hf-api", () => ({
     fetchModels: vi.fn(),
     retryWithBackoff: vi.fn((fn) => fn()),
 }));
-
 vi.mock("../utils/time", () => ({
     sleep: vi.fn(),
 }));
+vi.mock("../lib/queue", () => ({
+    connectToQueue: vi.fn(() => ({ mockSqsClient: true })),
+    sendEvent: vi.fn(),
+}));
 
+const mockBulk = vi.fn().mockResolvedValue({ items: [] });
+const mockEsClient = { bulk: mockBulk };
+
+vi.mock("../lib/es", () => ({
+    connectToElasticsearch: vi.fn(() => mockEsClient),
+}));
 vi.spyOn(process, "exit").mockImplementation(() => undefined as never);
 
 describe("Backup Job", () => {
@@ -82,8 +88,8 @@ describe("Backup Job", () => {
 
     it("should process models in batches", async () => {
         const mockModels = [
-            { id: "model1", trendingScore: 100 },
-            { id: "model2", trendingScore: 90 },
+            { id: "model1", trendingScore: 100, gated: false },
+            { id: "model2", trendingScore: 90, gated: true },
         ] as Model[];
 
         vi.mocked(fetchModels)
@@ -117,6 +123,25 @@ describe("Backup Job", () => {
                 },
             }))
         );
+        expect(mockBulk).toHaveBeenCalledWith({
+            operations: mockModels.flatMap((model) => [
+                {
+                    update: {
+                        _index: "models",
+                        _id: `507f1f77bcf86cd799439011_${model.id}`,
+                    },
+                },
+                {
+                    doc: {
+                        jobId: "507f1f77bcf86cd799439011",
+                        modelId: model.modelId,
+                        trendingScore: model.trendingScore,
+                    },
+                    doc_as_upsert: true,
+                },
+            ]),
+            refresh: true,
+        });
         expect(sleep).toHaveBeenCalled();
     });
 
@@ -126,6 +151,7 @@ describe("Backup Job", () => {
             .map((_, i) => ({
                 id: `model${i}`,
                 trendingScore: 100 - i,
+                gated: i % 2 === 0,
             })) as Model[];
 
         vi.mocked(fetchModels)

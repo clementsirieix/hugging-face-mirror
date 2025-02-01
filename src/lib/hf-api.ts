@@ -1,29 +1,10 @@
-import { ObjectId } from "mongodb";
+import { Model } from "../types";
 import { sleep } from "../utils/time";
 import { env } from "./env";
 
 type PaginatedResponse<T> = {
     data: T[];
     nextCursor: string | null;
-};
-
-export type Model = {
-    _id: ObjectId;
-    id: string;
-    author: string;
-    gated: boolean | string;
-    inference: string;
-    likes: number;
-    trendingScore: number;
-    private: boolean;
-    sha: string;
-    downloads: number;
-    tags: string[];
-    pipeline_tag: string;
-    library_name: string;
-    createdAt: string;
-    modelId: string;
-    siblings: Record<string, unknown>[];
 };
 
 export async function fetchModels(

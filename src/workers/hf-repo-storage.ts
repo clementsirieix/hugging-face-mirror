@@ -10,12 +10,18 @@ import { retryWithBackoff } from "../lib/hf-api";
 import { sleep } from "../utils/time";
 import { connectToElasticsearch } from "../lib/es";
 import path from "path";
+import { connectToDatabase } from "../lib/db";
+import { ModelPosition } from "../types";
+import { ObjectId } from "mongodb";
+import { getDirSize } from "../utils/system";
 
 const execAsync = promisify(exec);
 
 export async function upsertModel({ modelId, jobId }: { modelId: string; jobId: string }) {
     const s3 = connectToStorage();
     const esClient = connectToElasticsearch();
+    const db = await connectToDatabase();
+    const modelPositionsCollection = db.collection<ModelPosition>("model_positions");
     const tempDir = `/tmp/model-${encodeURIComponent(modelId)}-${dayjs().valueOf()}`;
 
     try {
@@ -55,20 +61,27 @@ export async function upsertModel({ modelId, jobId }: { modelId: string; jobId: 
         throw error;
     } finally {
         try {
+            const dirSize = await getDirSize(tempDir);
             const readme = await readFile(path.join(tempDir, "README.md"), "utf-8");
 
             if (readme) {
-                await esClient.index({
+                await esClient.update({
                     index: "models",
                     id: `${jobId}_${modelId}`,
-                    document: {
+                    doc: {
                         jobId,
                         modelId,
                         readme,
+                        dirSize,
                     },
+                    doc_as_upsert: true,
                     refresh: true,
                 });
             }
+            await modelPositionsCollection.updateOne(
+                { jobId: new ObjectId(jobId), "model.modelId": modelId },
+                { $set: { dirSize } }
+            );
             await rm(tempDir, { recursive: true, force: true });
         } catch (error) {
             console.error("Error during cleanup:", error);
