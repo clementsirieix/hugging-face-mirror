@@ -45,7 +45,7 @@ export async function run() {
         );
         const modelPositionOperations = data.map((model) => {
             if (model.gated === false) {
-                sendEvent(sqsClient, { modelId: model.id });
+                sendEvent(sqsClient, { modelId: model.id, jobId });
             }
             return {
                 updateOne: {

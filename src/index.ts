@@ -6,6 +6,7 @@ import { Scheduler } from "./lib/scheduler";
 import { getWorkerFilePath } from "./utils/path";
 import { disconnectFromStorage } from "./lib/storage";
 import { disconnectFromQueue, startConsumerWorkers, stopWorkers } from "./lib/queue";
+import { connectToElasticsearch, initMapping } from "./lib/es";
 
 const app = express();
 let scheduler: Scheduler | null = null;
@@ -17,6 +18,10 @@ async function startServer() {
         const db = await connectToDatabase();
         app.set("db", db);
         console.log("Connected to MongoDB");
+
+        const esClient = connectToElasticsearch();
+        await initMapping(esClient);
+        console.log("Connected to Elasticsearch");
 
         startConsumerWorkers(getWorkerFilePath("hf-repo-storage"));
         console.log("Consumer workers started");

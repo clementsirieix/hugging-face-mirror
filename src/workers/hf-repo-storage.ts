@@ -1,4 +1,4 @@
-import { mkdir, rm } from "fs/promises";
+import { mkdir, readFile, rm } from "fs/promises";
 import { exec } from "child_process";
 import { promisify } from "util";
 import dayjs from "dayjs";
@@ -8,11 +8,14 @@ import { connectToQueue, deleteEvent, receiveEvent } from "../lib/queue";
 import { workerData } from "worker_threads";
 import { retryWithBackoff } from "../lib/hf-api";
 import { sleep } from "../utils/time";
+import { connectToElasticsearch } from "../lib/es";
+import path from "path";
 
 const execAsync = promisify(exec);
 
-export async function upsertModel(modelId: string) {
+export async function upsertModel({ modelId, jobId }: { modelId: string; jobId: string }) {
     const s3 = connectToStorage();
+    const esClient = connectToElasticsearch();
     const tempDir = `/tmp/model-${encodeURIComponent(modelId)}-${dayjs().valueOf()}`;
 
     try {
@@ -52,6 +55,20 @@ export async function upsertModel(modelId: string) {
         throw error;
     } finally {
         try {
+            const readme = await readFile(path.join(tempDir, "README.md"), "utf-8");
+
+            if (readme) {
+                await esClient.index({
+                    index: "models",
+                    id: `${jobId}_${modelId}`,
+                    document: {
+                        jobId,
+                        modelId,
+                        readme,
+                    },
+                    refresh: true,
+                });
+            }
             await rm(tempDir, { recursive: true, force: true });
         } catch (error) {
             console.error("Error during cleanup:", error);
@@ -75,7 +92,7 @@ async function run() {
                     }
                     const body = JSON.parse(message.Body);
                     console.log(`Starting to handle model: ${body.modelId}`);
-                    await upsertModel(body.modelId);
+                    await upsertModel(body);
 
                     await deleteEvent(sqsClient, message.ReceiptHandle);
                 }

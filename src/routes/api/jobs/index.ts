@@ -1,6 +1,7 @@
 import { Request, Response, Router } from "express";
 import { Db, ObjectId } from "mongodb";
 import { JobStatus } from "../../../lib/scheduler";
+import { connectToElasticsearch, esSearch, ModelIndex } from "../../../lib/es";
 
 type JobsQueryParams = {
     limit?: string;
@@ -58,6 +59,7 @@ type JobModelsQueryParams = {
     limit?: string;
     page?: string;
     sort?: string;
+    search?: string;
 };
 
 export async function getJobModels(
@@ -79,9 +81,39 @@ export async function getJobModels(
     const page = parseInt(req.query.page || "1", 10);
     const skip = (page - 1) * limit;
     const [, directionSign, field] = req.query.sort?.match(/(-)?(.*)/) || [];
+    let searchResult: string[] = [];
+
+    if (req.query.search) {
+        searchResult = (
+            await esSearch<ModelIndex>(
+                connectToElasticsearch(),
+                "models",
+                req.query.search,
+                limit,
+                skip,
+                {
+                    jobId: req.params.jobId,
+                }
+            )
+        ).map((doc) => doc.modelId);
+
+        if (searchResult.length === 0) {
+            res.json({
+                data: [],
+                pagination: {
+                    total: 0,
+                    page,
+                    limit,
+                    pages: 0,
+                },
+            });
+            return;
+        }
+    }
+    const idQuery = searchResult.length > 0 ? { "model.id": { $in: searchResult } } : {};
 
     try {
-        const query = { jobId: jobObjectId };
+        const query = { jobId: jobObjectId, ...idQuery };
         const [data, total] = await Promise.all([
             modelPositionsCollection
                 .find(query)
@@ -91,6 +123,12 @@ export async function getJobModels(
                 .toArray(),
             modelPositionsCollection.countDocuments(query),
         ]);
+
+        if (searchResult.length > 0) {
+            data.sort(
+                (a, b) => searchResult.indexOf(a.model.id) - searchResult.indexOf(b.model.id)
+            );
+        }
 
         res.json({
             data,

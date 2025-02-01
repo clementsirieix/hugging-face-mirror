@@ -19,7 +19,23 @@ services:
         volumes:
             - ./localstack-script.sh:/etc/localstack/init/ready.d/script.sh
             - "/var/run/docker.sock:/var/run/docker.sock"
+    elasticsearch:
+        image: docker.elastic.co/elasticsearch/elasticsearch:7.17.10
+        environment:
+            - discovery.type=single-node
+            - ES_JAVA_OPTS=-Xms512m -Xmx512m
+        ports:
+            - "9200:9200"
+            - "9300:9300"
+        ulimits:
+            memlock:
+                soft: -1
+                hard: -1
+        volumes:
+            - esdata:/usr/share/elasticsearch/data
 
 volumes:
     mongodb_data:
+        driver: local
+    esdata:
         driver: local
