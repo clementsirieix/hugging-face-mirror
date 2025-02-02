@@ -7,15 +7,6 @@ A service that mirrors and indexes trending models from Hugging Face Hub, provid
 - Provide an API endpoint to search models' README and filter by repo size
 - Display a simple UI to use the search functionality
 
-The system consists of several components working together:
-
-- **Express Server**: Handles API requests and manages scheduled jobs
-- **MongoDB**: Stores model metadata and job information
-- **Amazon SQS**: Manages distributed processing of model repositories
-- **Amazon S3**: Stores repository content
-- **Elasticsearch**: Powers full-text search capabilities
-- **React Frontend**: Provides user interface for searching and filtering models
-
 ## Getting Started
 
 ### Prerequisites
@@ -161,6 +152,7 @@ Search models associated with a specific job, with support for full-text search 
    The cron job will store the server metadata in a MongoDB database for safe-keeping with the associated job. Note that the cleanup job is not part of this implementation.
    For storing the repositories, I want to avoid long blocking operations as it has a large cost in terms of resources and can fail during execution, so I opted to use a simple SQS queue that will handle messages and let the consumers send the data to a S3 storage.
    Note that HF provides the authors with the ability to "gate" the content of their repository, so we will skip those. I also added 2 endpoints: 1 to get the (cron) jobs, and a second one to get the models saved by a job.
+   The second assumption is to consider that indexing/calculating the size of the repo can be done over time rather than keeping track of the progress state.
 
 2. For the full-text search I've added Elasticsearch to our setup, it will receive the content of the README.md and index it. We then use the indexes in our models endpoint to find the relevant models.
 
