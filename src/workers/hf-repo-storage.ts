@@ -2,7 +2,7 @@ import { mkdir, readFile, rm } from "fs/promises";
 import { exec } from "child_process";
 import { promisify } from "util";
 import dayjs from "dayjs";
-import { connectToStorage, downloadFolder, uploadFolder } from "../lib/storage";
+import { connectToStorage, uploadFolder } from "../lib/storage";
 import { env } from "../lib/env";
 import { connectToQueue, deleteEvent, receiveEvent } from "../lib/queue";
 import { workerData } from "worker_threads";
@@ -14,6 +14,7 @@ import { connectToDatabase } from "../lib/db";
 import { ModelPosition } from "../types";
 import { ObjectId } from "mongodb";
 import { getDirSize } from "../utils/system";
+import { logger } from "../lib/logger";
 
 const execAsync = promisify(exec);
 
@@ -35,29 +36,17 @@ export async function upsertModel({ modelId, jobId }: { modelId: string; jobId: 
         const hasModel = Contents?.length > 0;
 
         if (hasModel) {
-            await downloadFolder(s3, env.s3BucketName, modelId, tempDir);
-
-            const { stdout: oldHash } = await execAsync("git rev-parse HEAD", { cwd: tempDir });
-            await execAsync("git remote update", { cwd: tempDir });
-            await execAsync("git reset --hard origin/main", { cwd: tempDir });
-            await execAsync("GIT_LFS_SKIP_SMUDGE=1 git pull origin main", { cwd: tempDir });
-            const { stdout: newHash } = await execAsync("git rev-parse HEAD", { cwd: tempDir });
-
-            if (oldHash.trim() !== newHash.trim()) {
-                await s3.deleteObject({
-                    Bucket: env.s3BucketName,
-                    Key: modelId,
-                });
-                await uploadFolder(s3, env.s3BucketName, modelId, tempDir);
-            }
-            return;
+            await s3.deleteObject({
+                Bucket: env.s3BucketName,
+                Key: modelId,
+            });
         }
         await execAsync(`GIT_LFS_SKIP_SMUDGE=1 git clone https://huggingface.co/${modelId} .`, {
             cwd: tempDir,
         });
         await uploadFolder(s3, env.s3BucketName, modelId, tempDir);
     } catch (error) {
-        console.error(`Error processing model ${modelId}:`, error);
+        logger.error(`Error processing model ${modelId}:`, error);
         throw error;
     } finally {
         try {
@@ -84,7 +73,7 @@ export async function upsertModel({ modelId, jobId }: { modelId: string; jobId: 
             );
             await rm(tempDir, { recursive: true, force: true });
         } catch (error) {
-            console.error("Error during cleanup:", error);
+            logger.error("Error during cleanup:", error);
         }
     }
 }
@@ -92,7 +81,7 @@ export async function upsertModel({ modelId, jobId }: { modelId: string; jobId: 
 async function run() {
     const sqsClient = connectToQueue();
     const { workerId } = workerData;
-    console.log(`Worker ${workerId} started`);
+    logger.info(`Worker ${workerId} started`);
 
     while (true) {
         await retryWithBackoff(async () => {
@@ -104,7 +93,7 @@ async function run() {
                         continue;
                     }
                     const body = JSON.parse(message.Body);
-                    console.log(`Starting to handle model: ${body.modelId}`);
+                    logger.info(`Starting to handle model: ${body.modelId}`);
                     await upsertModel(body);
 
                     await deleteEvent(sqsClient, message.ReceiptHandle);
@@ -121,7 +110,7 @@ if (!env.isTest) {
             process.exit(0);
         })
         .catch((error) => {
-            console.error("Storage consumer failed:", error);
+            logger.error("Storage consumer failed:", error);
             process.exit(1);
         });
 }

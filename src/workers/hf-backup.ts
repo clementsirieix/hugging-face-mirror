@@ -7,9 +7,10 @@ import { sleep } from "../utils/time";
 import { connectToQueue, sendEvent } from "../lib/queue";
 import { ModelPosition } from "../types";
 import { connectToElasticsearch } from "../lib/es";
+import { logger } from "../lib/logger";
 
 export async function run() {
-    console.log("Backup job started");
+    logger.info("Backup job started");
     const sqsClient = connectToQueue();
     const esClient = connectToElasticsearch();
     const jobId = workerData?.jobId;
@@ -88,7 +89,7 @@ export async function run() {
         await sleep(env.trendingModelsDelayMs);
     }
 
-    console.log("Backup job completed");
+    logger.info("Backup job completed");
 }
 
 if (!env.isTest) {
@@ -97,7 +98,7 @@ if (!env.isTest) {
             process.exit(0);
         })
         .catch((error) => {
-            console.error("Backup job failed:", error);
+            logger.error("Backup job failed:", error);
             process.exit(1);
         });
 }

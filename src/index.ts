@@ -8,6 +8,7 @@ import { disconnectFromStorage } from "./lib/storage";
 import { disconnectFromQueue, startConsumerWorkers, stopWorkers } from "./lib/queue";
 import { connectToElasticsearch, initMapping } from "./lib/es";
 import path from "path";
+import { logger } from "./lib/logger";
 
 const app = express();
 let scheduler: Scheduler | null = null;
@@ -24,14 +25,14 @@ async function startServer() {
     try {
         const db = await connectToDatabase();
         app.set("db", db);
-        console.log("Connected to MongoDB");
+        logger.info("Connected to MongoDB");
 
         const esClient = connectToElasticsearch();
         await initMapping(esClient);
-        console.log("Connected to Elasticsearch");
+        logger.info("Connected to Elasticsearch");
 
         startConsumerWorkers(getWorkerFilePath("hf-repo-storage"));
-        console.log("Consumer workers started");
+        logger.info("Consumer workers started");
 
         scheduler = new Scheduler(
             "hf-backup",
@@ -39,20 +40,20 @@ async function startServer() {
             getWorkerFilePath("hf-backup"),
             db
         );
-        // scheduler.start();
-        console.log("Scheduler started");
+        scheduler.start();
+        logger.info("Scheduler started");
 
         app.listen(env.port, () => {
-            console.log(`Server is running on port ${env.port}`);
+            logger.info(`Server is running on port ${env.port}`);
         });
     } catch (error) {
-        console.error("Failed to start server:", error);
+        logger.error("Failed to start server:", error);
         process.exit(1);
     }
 }
 
 process.on("SIGTERM", async () => {
-    console.log("SIGTERM received. Shutting down gracefully...");
+    logger.info("SIGTERM received. Shutting down gracefully...");
     await disconnectFromDatabase();
     disconnectFromStorage();
     disconnectFromQueue();

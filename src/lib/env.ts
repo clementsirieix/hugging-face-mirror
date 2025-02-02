@@ -28,4 +28,5 @@ export const env = {
     sqsAccessKeyId: process.env.SQS_ACCESS_KEY_ID || "test",
     sqsSecretAccessKey: process.env.SQS_SECRET_ACCESS_KEY || "key",
     esUrl: process.env.ES_URL || "http://localhost:9200",
+    shouldLog: process.env.LOG === "true",
 };

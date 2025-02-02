@@ -4,11 +4,10 @@
     "description": "TODO: Add description",
     "main": "src/index.ts",
     "scripts": {
-        "build": "tsc",
+        "build": "tsc && vite build",
         "start": "NODE_ENV=production node dist/index.js",
         "dev": "NODE_ENV=development nodemon --watch 'src/**' --ext 'ts,json' --ignore 'src/**/*.test.ts' --exec 'ts-node src/index.ts'",
         "dev:client": "vite",
-        "build:client": "vite build",
         "lint": "eslint .",
         "typecheck": "tsc --noEmit",
         "test": "vitest",
@@ -62,6 +61,7 @@
         "node-cron": "3.0.3",
         "react": "18.0.0",
         "react-dom": "18.0.0",
-        "tailwind-merge": "3.0.1"
+        "tailwind-merge": "3.0.1",
+        "winston": "3.17.0"
     }
 }

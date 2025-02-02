@@ -1,6 +1,7 @@
 import { Model } from "../types";
 import { sleep } from "../utils/time";
 import { env } from "./env";
+import { logger } from "./logger";
 
 type PaginatedResponse<T> = {
     data: T[];
@@ -26,9 +27,11 @@ export async function fetchModels(
     url.searchParams.set("full", "full");
 
     const response = await fetch(url, {
-        headers: {
-            Authorization: `Bearer ${env.hfToken}`,
-        },
+        headers: env.hfToken
+            ? {
+                  Authorization: `Bearer ${env.hfToken}`,
+              }
+            : {},
     });
     const models = (await response.json()) as Model[];
     let nextCursor: string | null = null;
@@ -65,7 +68,7 @@ export async function retryWithBackoff<T>(
 
         return result;
     } catch (error) {
-        console.log(error);
+        logger.info(error);
         if (attempt >= options.maxAttempts) {
             throw error;
         }

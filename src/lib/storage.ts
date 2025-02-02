@@ -1,6 +1,6 @@
-import { lstat, mkdir, readdir, readFile, writeFile } from "fs/promises";
+import { lstat, readdir, readFile } from "fs/promises";
 import path from "path";
-import { GetObjectCommand, ListObjectsV2Command, S3 } from "@aws-sdk/client-s3";
+import { S3 } from "@aws-sdk/client-s3";
 import { env } from "./env";
 
 let client: S3 | null = null;
@@ -27,46 +27,6 @@ export function disconnectFromStorage() {
         client.destroy();
         client = null;
     }
-}
-
-export async function downloadFolder(s3: S3, bucketName: string, prefix: string, localDir: string) {
-    const listParams = {
-        Bucket: bucketName,
-        Prefix: prefix,
-    };
-
-    let continuationToken: string | undefined = undefined;
-    do {
-        const listCommand: ListObjectsV2Command = new ListObjectsV2Command({
-            ...listParams,
-            ContinuationToken: continuationToken,
-        });
-
-        const response = await s3.send(listCommand);
-        continuationToken = response.NextContinuationToken;
-
-        if (response.Contents) {
-            for (const item of response.Contents) {
-                if (!item.Key || item.Key.endsWith("/")) {
-                    continue;
-                }
-
-                const localFilePath = path.join(localDir, item.Key.replace(prefix, ""));
-                await mkdir(path.dirname(localFilePath), { recursive: true });
-
-                const getObjectCommand = new GetObjectCommand({
-                    Bucket: bucketName,
-                    Key: item.Key,
-                });
-                const response = await s3.send(getObjectCommand);
-                const buffer = await response?.Body?.transformToByteArray();
-
-                if (buffer) {
-                    await writeFile(localFilePath, buffer);
-                }
-            }
-        }
-    } while (continuationToken);
 }
 
 export async function uploadFolder(

@@ -48,4 +48,5 @@ export type ModelIndex = {
     jobId: string;
     modelId: string;
     readme: string;
+    dirSize: number;
 };

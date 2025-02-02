@@ -5,6 +5,7 @@ import cron, { ScheduledTask } from "node-cron";
 import { Worker } from "worker_threads";
 import { env } from "./env";
 import { Job, JobStatus } from "../types";
+import { logger } from "./logger";
 
 export class Scheduler {
     private jobs: Collection<Job>;
@@ -54,11 +55,11 @@ export class Scheduler {
                 Math.abs(dayjs(lastJob.startTime).diff(dayjs())) >= this.intervalMs * 0.9;
 
             if (lastJob?.status === JobStatus.Pending && !hasPassedInterval) {
-                console.log("Previous job is still running. Skipping this run.");
+                logger.info("Previous job is still running. Skipping this run.");
                 return;
             }
             if (lastJob?.status === JobStatus.Completed && !hasPassedInterval) {
-                console.log("Previous job has been completed before interval. Skipping this run.");
+                logger.info("Previous job has been completed before interval. Skipping this run.");
                 return;
             }
 
@@ -114,7 +115,7 @@ export class Scheduler {
             }, this.jobTimeoutMs);
 
             this.jobWorker.on("message", (message) => {
-                console.log(`Worker message: ${message}`);
+                logger.info(`Worker message: ${message}`);
             });
             this.jobWorker.on("error", (error) => {
                 clearTimeout(timeout);

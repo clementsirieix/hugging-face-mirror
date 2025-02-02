@@ -9,6 +9,7 @@ import {
 } from "@aws-sdk/client-sqs";
 import { Worker } from "worker_threads";
 import { env } from "./env";
+import { logger } from "./logger";
 
 let client: SQS | null = null;
 let workers: Worker[] = [];
@@ -59,7 +60,7 @@ export async function sendEvent(
             })
         );
     } catch (error) {
-        console.error("Error sending message:", error);
+        logger.error("Error sending message:", error);
         throw error;
     }
 }
@@ -78,7 +79,7 @@ export async function receiveEvent(client: SQS): Promise<ReceiveMessageCommandOu
             })
         );
     } catch (error) {
-        console.error("Error receiving message:", error);
+        logger.error("Error receiving message:", error);
         throw error;
     }
 }
@@ -99,12 +100,12 @@ export async function deleteEvent(
             })
         );
     } catch (error) {
-        console.error("Error deleting message:", error);
+        logger.error("Error deleting message:", error);
         throw error;
     }
 }
 
-export function startConsumerWorkers(fileName: string, numberOfWorkers = 3) {
+export function startConsumerWorkers(fileName: string, numberOfWorkers = 10) {
     for (let i = 0; i < numberOfWorkers; i++) {
         if (workers[i]) {
             workers[i].terminate();
@@ -120,16 +121,16 @@ export function startConsumerWorkers(fileName: string, numberOfWorkers = 3) {
               });
 
         workers[i].on("message", (message) => {
-            console.log(`Worker ${i} message:`, message);
+            logger.info(`Worker ${i} message:`, message);
         });
 
         workers[i].on("error", (error) => {
-            console.error(`Worker ${i} error:`, error);
+            logger.error(`Worker ${i} error:`, error);
         });
 
         workers[i].on("exit", (code) => {
             if (code !== 0) {
-                console.error(`Worker ${i} stopped with exit code ${code}`);
+                logger.error(`Worker ${i} stopped with exit code ${code}`);
             }
         });
     }
